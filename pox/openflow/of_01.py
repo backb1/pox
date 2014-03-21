@@ -81,6 +81,8 @@ def handle_ECHO_REQUEST (con, msg): #S
   con.send(reply)
 
 def handle_FLOW_REMOVED (con, msg): #A
+  if not con.connection_up_raised:
+    return
   e = con.ofnexus.raiseEventNoErrors(FlowRemoved, con, msg)
   if e is None or e.halt != True:
     con.raiseEventNoErrors(FlowRemoved, con, msg)
@@ -125,6 +127,7 @@ def handle_FEATURES_REPLY (con, msg):
       e = con.ofnexus.raiseEventNoErrors(ConnectionUp, con, msg)
       if e is None or e.halt != True:
         con.raiseEventNoErrors(ConnectionUp, con, msg)
+      con.connection_up_raised = True
       e = con.ofnexus.raiseEventNoErrors(FeaturesReceived, con, msg)
       if e is None or e.halt != True:
         con.raiseEventNoErrors(FeaturesReceived, con, msg)
@@ -158,6 +161,8 @@ def handle_FEATURES_REPLY (con, msg):
   """
 
 def handle_STATS_REPLY (con, msg):
+  if not con.connection_up_raised:
+    return
   e = con.ofnexus.raiseEventNoErrors(RawStatsReply, con, msg)
   if e is None or e.halt != True:
     con.raiseEventNoErrors(RawStatsReply, con, msg)
@@ -168,11 +173,15 @@ def handle_PORT_STATUS (con, msg): #A
     con.ports._forget(msg.desc)
   else:
     con.ports._update(msg.desc)
+  if not con.connection_up_raised:
+    return
   e = con.ofnexus.raiseEventNoErrors(PortStatus, con, msg)
   if e is None or e.halt != True:
     con.raiseEventNoErrors(PortStatus, con, msg)
 
 def handle_PACKET_IN (con, msg): #A
+  if not con.connection_up_raised:
+    return
   e = con.ofnexus.raiseEventNoErrors(PacketIn, con, msg)
   if e is None or e.halt != True:
     con.raiseEventNoErrors(PacketIn, con, msg)
@@ -614,6 +623,7 @@ class Connection (EventMixin):
     self.features = None
     self.disconnected = False
     self.disconnection_raised = False
+    self.connection_up_raised = False
     self.connect_time = None
     self.idle_time = time.time()
 
@@ -651,6 +661,7 @@ class Connection (EventMixin):
       self.msg("already disconnected")
     self.info(msg)
     self.disconnected = True
+    self.connection_up_raised = False
     try:
       self.ofnexus._disconnect(self.dpid)
     except:
